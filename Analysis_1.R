@@ -30,27 +30,17 @@ library(soiltestcorr)
 
 library(ggpubr)
 
-library(gridExtra)
+library(gridsextra)
 
 library(ggpackets)
 
 library(reshape2)
-
-library(lme4)
-
-library(gstat)
 
 # Set working directory from where data folder is accessible
 setwd('/Users/andrewsila/Alliance/Job/Data')
 
 # Read data matching agronomic survey and plant quality data from the lab
 survey <- read.csv('./Cleaned/Field_survey_quality_soil_TPI.csv')
-
-# set Zn..ppm......... zero value to na
-
-zero <- which(survey$Zn..ppm......... == 0 )
-
-survey$Zn..ppm.........[zero] <- NA
 
 # For the entry recorded as improved seed source and variety as "Local", use 'DK 8031' as variety
 survey.l <- survey %>%
@@ -189,16 +179,16 @@ survey %>%
 ggplot(survey, aes(seed_source))+
   geom_bar()
 
-#ggplot(survey) +
-  #aes(x = seed_source, y = after_stat(count), fill = seed_source,by = 1) +
-  #geom_bar(stat = "prop") + ylab('Count of Farmers') + xlab("")  + scale_fill_manual(values = c("grey", "orange")) +
+ggplot(survey) +
+  aes(x = seed_source, y = after_stat(count), fill = seed_source,by = 1) +
+  geom_bar(stat = "prop") + ylab('Count of Farmers') + xlab("")  + scale_fill_manual(values = c("grey", "orange")) +
 
-  #geom_text(aes(label = scales::percent(after_stat(prop))), stat = "prop", vjust=-0.7) -> #p1
+  geom_text(aes(label = scales::percent(after_stat(prop))), stat = "prop", vjust=-0.7) -> p1
   
 
-#p1
+p1
 ## 
-#ggsave('/Users/andrewsila/Alliance/Job/Plots/Counts per seed_source.png', p1, height  = 5, width = 5)
+ggsave('/Users/andrewsila/Alliance/Job/Plots/Counts per seed_source.png', p1, height  = 5, width = 5)
 
 
 # Counts
@@ -250,6 +240,13 @@ survey %>%
     Late_planting = n()
   )
   
+# Two sample analysis. Are Fe or N concentration differ by gender
+survey %>%
+  svyglm(design.,
+         formula = N.... ~ gender,
+         na.action  = omit)
+
+
 # Planting methods used
 survey %>%
   group_by(planting_method) %>%
@@ -789,7 +786,7 @@ summary(a.s1)
 farmsc <- na.omit(survey[,c('Farmer.Villagec','maizetha_125', 'Iron', 'Zinc','ISFM_i','village','pp2', 'maizetha_125')])
 
 # Cate_Nelson procedure
-survey_caten <- na.omit(survey[,c('maizetha_125', 'Iron', 'Zinc','ISFM_i','village','pp2', 'maizetha_125', 'Zn..ppm.........')])
+survey_caten <- na.omit(survey[,c('maizetha_125', 'Iron', 'Zinc','ISFM_i','village','pp2', 'maizetha_125')])
 
 survey_caten <- survey_caten %>%
 	mutate(FeZn = Iron/Zinc)
@@ -814,7 +811,7 @@ names(survey_caten)
 cate_nelson_1971(data = survey_caten, 
                        ry = ryld, 
                        stv = Iron, 
-                       plot = FALSE)
+                       plot = TRUE)
 
 # Zinc
 cate_nelson_1971(data = survey_caten, 
@@ -822,20 +819,10 @@ cate_nelson_1971(data = survey_caten,
                        stv = Zinc, 
                        plot = TRUE)
 #Iron Zinc ratio
-source("/Users/andrewsila/Alliance/Job/Code/CateNelson_fun.R")
-
 ratio <- cate_nelson_1971(data = survey_caten, 
                        ry = maizetha_125, 
                        stv = round(FeZn), 
                        plot = TRUE)
-                       
-# Repeat with cate_nelson function edited to remove ppm units to handle ratio which are unitless
-
-ratio <- cate_nelson(data = survey_caten, 
-                       ry = maizetha_125, 
-                       stv = round(FeZn), 
-                       plot = TRUE)
-                                              
 # Get ISFM components in Cate_Nelson quadrant 3 for FeZn ratio
                        
 q3 <- ratio$data %>%
@@ -865,33 +852,6 @@ z <- which(survey$Farmer.Villagec %in% farmz$Farmer.Villagec)
 write.csv(survey[z,], file = '/Users/andrewsila/Alliance/Job/Data/Cleaned/Farms above fezn ratio critical limit.csv', row.names = FALSE)
 survey_caten[z,]
 
-# Get Cate_Nelson for grain zinc instead of grain yield
-source("/Users/andrewsila/Alliance/Job/Code/CateNelson_fun_grain_zn.R")
-ratio <- cate_nelson(data = survey_caten, 
-                       ry = Zn..ppm........., 
-                       stv = round(FeZn), 
-                       plot = TRUE)
-                                              
-# Get ISFM components in Cate_Nelson quadrant 3 for FeZn ratio
-                       
-q3 <- ratio$data %>%
-filter(q == "III")
-
-obs <- q3[,'ObsNo']
-
-survey_caten[obs,c('ISFM_i','Zinc','Zn..ppm.........')]
-                       
-ratio <- ratio + ggtitle('') + xlab('') + ylab('')
-
-ratio <- ratio + ggtitle('Cate & Nelson Analysis of Soil Test Values', subtitle = "Babati-Tanzania Survey")
-
-ratio <- ratio + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
-
-ratio <- ratio + xlab('Soil Fe:Zn Ratio') + ylab('Grain Zinc (mg/kg)')
-                       
-# Save it
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Fe_Zn response ratio_grain_zn.png", ratio, height = 5.5, width = 5.5)
-     
 # Get Cate_Nelson function for Boron and P
 survey_catenb <- na.omit(survey[,c('maizetha_125', 'Boron','ISFM_i','village','pp2')])
 
@@ -912,67 +872,6 @@ boron <- boron + xlab('Soil Boron') + ylab('Grain Yield (t/ha)')
                        
 ggsave("/Users/andrewsila/Alliance/Job/Plots/Boron response ratio.png", boron, height = 5.5, width = 5.5)
 
-# Cate_Nelson procedure
-survey_catenb <- na.omit(survey[,c('maizetha_125', 'Iron', 'Zinc','ISFM_i','village','pp2', 'maizetha_125', 'Zn..ppm.........','X.Phosphorus..Olsen.')])
-
-survey_catenb <- survey_catenb %>%
-	mutate(PZn = X.Phosphorus..Olsen./Zinc)
-
-survey_catenb <- survey_catenb %>%
-	mutate(FeZn = Iron/Zinc)
-
-# P:Zn ratio against yield and grain zinc
-
-ratio <- cate_nelson(data = survey_catenb, 
-                       ry = maizetha_125, 
-                       stv = round(PZn,3), 
-                       plot = TRUE)
-                                              
-# Get ISFM components in Cate_Nelson quadrant 3 for FeZn ratio
-                       
-q3 <- ratio$data %>%
-filter(q == "III")
-
-obs <- q3[,'ObsNo']
-
-survey_caten[obs,c('ISFM_i','Zinc','maizetha_125')]
-                       
-ratio <- ratio + ggtitle('') + xlab('') + ylab('')
-
-ratio <- ratio + ggtitle('Cate & Nelson Analysis of Soil Test Values', subtitle = "Babati-Tanzania Survey")
-
-ratio <- ratio + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
-
-ratio <- ratio + xlab('Soil P:Zn Ratio') + ylab('Grain Yield (t/ha)')
-                       
-# Save it
-ggsave("/Users/andrewsila/Alliance/Job/Plots/P_Zn response ratio.png", ratio, height = 5.5, width = 5.5)
-
-ratio <- cate_nelson(data = survey_catenb, 
-                       ry = Zn..ppm........., 
-                       stv = round(PZn,3), 
-                       plot = TRUE)
-                                              
-# Get ISFM components in Cate_Nelson quadrant 3 for FeZn ratio
-                       
-#q3 <- ratio$data %>%
-#filter(q == "III")
-
-#obs <- q3[,'ObsNo']
-
-#survey_caten[obs,c('ISFM_i','Zinc','maizetha_125')]
-                       
-ratio <- ratio + ggtitle('') + xlab('') + ylab('')
-
-ratio <- ratio + ggtitle('Cate & Nelson Analysis of Soil Test Values', subtitle = "Babati-Tanzania Survey")
-
-ratio <- ratio + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
-
-ratio <- ratio + xlab('Soil Olsen P:Zn Ratio') + ylab('Grain Zinc (ppm)')
-                       
-# Save it
-ggsave("/Users/andrewsila/Alliance/Job/Plots/P_Zn response ratio_grain_zinc.png", ratio, height = 5.5, width = 5.5)
-	
 # Olsen P
 survey_catenb <- na.omit(survey[,c('maizetha_125', 'X.Phosphorus..Olsen.','ISFM_i','village','pp2')])
 
@@ -1035,10 +934,11 @@ length(czl)/210
 # Label farms with soil fe to zn ratio below 88.5 as low otherwise ok
 survey <- survey %>%
 mutate(feznl = ifelse(Iron/Zinc >= 88.5,'High','Low'),
-sznl = ifelse(Zinc > 1.3,'Ok','Low')
+sznl = ifelse(Zinc > 1.3,'Ok','Low'),
+pznl = ifelse(X.Phosphorus..Olsen./Zinc >= 2.97,"High", "Low")
 )
 
-soild <- na.omit(survey[,c('ISFM_i','village','pp2', 'Boron','Manganese', 'Zinc',  'feznl', 'sznl')])
+soild <- na.omit(survey[,c('ISFM_i','village','pp2', 'Boron','Manganese', 'Zinc', 'Fe..ppm.........', 'maizetha_125','feznl', 'sznl','pznl')])
 
 l1 <- lm(Boron ~ feznl, data = soild)
 l2 <- lm(Manganese ~ feznl, data = soild)
@@ -1049,34 +949,90 @@ summary(l2)
 soild <- soild %>%
 mutate(ID = 1:nrow(soild))
 
-soilm <- melt(soild, id =c('ID','ISFM_i','pp2','village', 'feznl', 'sznl'))
+soilm <- melt(soild, id =c('ID','ISFM_i','pp2','village', 'feznl', 'sznl','pznl'))
 
-p2 <- ggplot(data = soilm, aes(y = feznl, value))
+p2 <- ggplot(data = soilm %>% filter(variable %in% c('Boron','Manganese','Zinc')), aes(y = pznl, value))
 p2 <- p2 + geom_boxplot(width = 0.2)
 p2 <- p2 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
-p2 <- p2  + ylab("FeZn ratio class") + xlab ('Concentration in soil (ppm)') + ggtitle('Boron, Manganese and Zinc distribution by FeZn ratio')
+p2 <- p2  + ylab("PZn ratio class") + xlab ('Concentration in soil (ppm)') + ggtitle('Boron, Manganese and Zinc distribution by PZn ratio')
 p2 <- p2 + facet_wrap(~variable, scales = "free")
 p2
 
 ggsave("/Users/andrewsila/Alliance/Job/Plots/ B Mn and Zn distribution by Fez.png", p2, height = 3, width = 9)
 
-# Test for significances for the above
-l1.a <- aov(Boron ~ feznl, data = soild)
-lmt1 <- TukeyHSD(l1.a, conf.level=.95)
-l2.a <- aov(Manganese ~ feznl, data = soild)
-lmt2 <- TukeyHSD(l2.a, conf.level=.95)
-l3.a <- aov(Zinc ~ feznl, data = soild)
-lmt3 <- TukeyHSD(l3.a, conf.level=.95)
+p2 <- ggplot(data = soilm %>% filter(!variable %in% c('Boron','Manganese','Zinc','Fe..ppm.........')), aes(y = pznl, value))
+p2 <- p2 + geom_boxplot(width = 0.2)
+p2 <- p2 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
+p2 <- p2  + ylab("PZn ratio class") + xlab ('Concentration in grains (mg/kg)') + ggtitle('Grain iron by PZn')
+p2
 
-tukey <- rbind(lmt1$feznl,lmt2$feznl,lmt3$feznl)
+ggsave("/Users/andrewsila/Alliance/Job/Plots/Grain Fe distribution by Pzn.png", p2, height = 3, width = 3)
 
-tukey[,-4] <- round(tukey[,-4],2)
+# Grain yield
+p2 <- ggplot(data = soilm %>% filter(!variable %in% c('Boron','Manganese','Zinc','maizetha_125')), aes(y = feznl, value))
+p2 <- p2 + geom_boxplot(width = 0.2)
+p2 <- p2 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
+p2 <- p2  + ylab("FeZn ratio class") + xlab ('Grain yield (t/ha)') + ggtitle('Grain yield FeZn')
+p2
 
-Properties <- c('Boron', 'Manganese', 'Zinc')
+ggsave("/Users/andrewsila/Alliance/Job/Plots/Grain yld distribution by Fezn.png", p2, height = 3, width = 3)
 
-lmts <- cbind(Properties, tukey)
+p2 <- ggplot(data = soilm %>% filter(!variable %in% c('Boron','Manganese','Zinc','Fe..ppm.........')), aes(y = feznl, value))
+p2 <- p2 + geom_boxplot(width = 0.2)
+p2 <- p2 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
+p2 <- p2  + ylab("FeZn ratio class") + xlab ('Grain yield (t/ha)') + ggtitle('Grain yield')
+p2
 
-write.csv(lmts, file = '/Users/andrewsila/Alliance/Job/Data/FeZn levels BMnZN_Tukeys_Honest.csv', row.names = TRUE)
+ggsave("/Users/andrewsila/Alliance/Job/Plots/Grain yld distribution by Fezn_grains.png", p2, height = 3, width = 3)
+
+# Grain yield
+p2 <- ggplot(data = soilm %>% filter(!variable %in% c('Boron','Manganese','Zinc','maizetha_125')), aes(y = feznl, value))
+p2 <- p2 + geom_boxplot(width = 0.2)
+p2 <- p2 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
+p2 <- p2  + ylab("FeZn ratio class") + xlab ('Concentration in grains (mg/kg)') + ggtitle('Grain Fe')
+p2
+
+ggsave("/Users/andrewsila/Alliance/Job/Plots/Grain Fe distribution by Fezn_grain.png", p2, height = 3, width = 3)
+
+# Get the third for pzn
+survey <- survey %>%
+mutate(feznl = ifelse(Iron/Zinc >= 88.5,'High','Low'),
+sznl = ifelse(Zinc > 1.3,'Ok','Low'),
+pzn = X.Phosphorus..Olsen./Zinc,
+ppznp = P...../Zn..ppm.........
+)
+
+soild <- na.omit(survey[,c('ISFM_i','village','pp2', 'feznl', 'sznl','pzn','ppznp')])
+
+soild <- soild %>%
+mutate(ID = 1:nrow(soild)) %>%
+select(-ppznp)
+
+soilm <- melt(soild, id =c('ID','ISFM_i','pp2','village', 'feznl', 'sznl'))
+# Grain yield
+p3 <- ggplot(data = soilm, aes(y = feznl, x=value))
+p3 <- p3 + geom_boxplot(width = 0.2)
+p3 <- p3 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
+p3 <- p3  + ylab("FeZn ratio class") + xlab ('PZn ratio') + ggtitle('PZn ratio')
+p3
+
+ggsave("/Users/andrewsila/Alliance/Job/Plots/Grain Pzn distribution by Fezn_grain.png", p3, height = 3, width = 3)
+
+soild <- na.omit(survey[,c('ISFM_i','village','pp2', 'feznl', 'sznl','pzn','ppznp')])
+
+soild <- soild %>%
+mutate(ID = 1:nrow(soild)) %>%
+select(-pzn)
+
+soilm <- melt(soild, id =c('ID','ISFM_i','pp2','village', 'feznl', 'sznl'))
+# Grain yield
+p3 <- ggplot(data = soilm, aes(y = feznl, x=value))
+p3 <- p3 + geom_boxplot(width = 0.2)
+p3 <- p3 + coord_flip() + theme_classic() + theme(plot.title = element_text(hjust = 0.5))
+p3 <- p3  + ylab("FeZn ratio class") + xlab ('PZn ratio') + ggtitle('PZn ratio')
+p3
+
+ggsave("/Users/andrewsila/Alliance/Job/Plots/Grain Pzn distribution by Fezn_grain.png", p3, height = 3, width = 3)
 
 
 survey %>%
@@ -1117,13 +1073,6 @@ p2 <- p2  + ylab("FeZn ratio class") + xlab ('Plant Fe (ppm)') + ggtitle('Plant 
 p2
 
 ggsave("/Users/andrewsila/Alliance/Job/Plots/Plant_Fe boxplot by FeZn level.png", p2, height = 2, width = 4)
-
-# Test if these are significantly different
-
-lf <- aov(plant_Fe ~ feznl, data = pld)
-lmt1 <- TukeyHSD(lf, conf.level=.95)
-
-# It is statistically signficantly different with p-value 0f 0.037
 
 smm <- function(x){
 	mean_x <- mean(x)
@@ -1196,6 +1145,8 @@ aweSOMplot(som = bbt.som, type = "Line", data = na.omit(train.data),
 aweSOMscreeplot(som = bbt.som, method = "pam", nclass = 30)
 
 aweSOMdendrogram(clust = superclust_hclust, nclass = 3)
+
+train.data <- scale(clstd[-1,])
 
 clstd <- na.omit(survey[,c(206,209,157:169,187:202)])
 
@@ -1286,7 +1237,7 @@ ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil_properties_Sulphur and Boron.p
 s1 <- ggplot(survey %>% filter (pp2 != 'Flat'),aes(y = Zinc, x = Iron))
 s1 <- s1 + geom_point(aes(color = pH)) + theme(plot.title = element_text(hjust = 0.5)) + scale_color_gradient2(name = "pH\nin soil",
       midpoint = 6, low="grey", mid = "green", high="red")
-s1 <- s1  + ylab("Zinc (mg/kg)") + xlab ('Iron (mg/kg)') 
+s1 <- s1  + ylab("Zincn (mg/kg)") + xlab ('Iron (mg/kg)') 
 
 s1 <- s1 + theme_classic() + theme(plot.title = element_text(hjust = 0.5))+ ggtitle('Zinc and Iron')
 
@@ -1296,31 +1247,15 @@ ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil_properties_Zinc and Iron.png",
 
 
 s1 <- ggplot(survey[-1,] %>% filter (pp2 != 'Flat'),aes(y = Fe..ppm........., x = Zn..ppm.........))
-s1 <- s1 + geom_point(aes(color = Zinc)) + theme(plot.title = element_text(hjust = 0.5)) + scale_color_gradient2(name = "Zinc\nin soil",
+s1 <- s1 + geom_point(aes(color = Zn..ppm.........)) + theme(plot.title = element_text(hjust = 0.5)) + scale_color_gradient2(name = "Zinc\nin soil",
       midpoint = 0.2, low="grey", mid = "green", high="red")
 s1 <- s1  + ylab("Grain Iron (mg/kg)") + xlab ("Grain Zinc (mg/kg)") 
 
-s1 <- s1 + theme_classic() + theme(plot.title = element_text(hjust = 0.5))+ ggtitle('a).Zinc and Iron for sloppy and rather steep areas')
+s1 <- s1 + theme_classic() + theme(plot.title = element_text(hjust = 0.5))+ ggtitle('Zinc and Iron')
 
 s1
 
 ggsave("/Users/andrewsila/Alliance/Job/Plots/Plant_properties_Zinc and Iron.png", s1, height = 4, width = 4)
-
-# For flat area
-s2 <- ggplot(survey[-1,] %>% filter (pp2 == 'Flat'), aes(y = Fe..ppm........., x = Zn..ppm.........))
-s2 <- s2 + geom_point(aes(color = Zinc)) + theme(plot.title = element_text(hjust = 0.5)) + scale_color_gradient2(name = "Zinc\nin soil",
-      midpoint = 0.2, low="grey", mid = "green", high="red")
-s2 <- s2  + ylab("Grain Iron (mg/kg)") + xlab ("Grain Zinc (mg/kg)") 
-
-s2 <- s2 + theme_classic() + theme(plot.title = element_text(hjust = 0.5))+ ggtitle('b). Zinc and Iron for flat areas')
-
-s2
-
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Plant_properties_Zinc and Iron_flat.png", s1, height = 4, width = 4)
-
-p <- grid.arrange(s1,s2, nrow = 1)
-
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Plant_properties_Zinc and Iron_flat_slope_steep.png", p, height = 4, width = 9)
 
 ##### All without excluding any
 s1 <- ggplot(survey ,aes(y = X.C.E.C, x = Calcium))
@@ -1411,296 +1346,3 @@ write.csv(lmt3$ISFM_int, file = '/Users/andrewsila/Alliance/Job/Data/Grain_yield
 
 write.csv(survey, './Cleaned/Field_survey_quality_soil_TPI_updated.csv', row.names = FALSE)
 
-# Get boxplots of grain zinc against slope (pp2)
-pz <- ggplot(data =survey, aes(y = Zn..ppm........., x = pp2))
-
-pz <- pz + stat_boxplot(geom = "errorbar", width = 0.2)
-pz <- pz + geom_boxplot(width = 0.3, fill = 'grey')
-pz <- pz + coord_flip() #+ theme_classic() + theme(plot.title = element_text(hjust = 0.5))
-pz <- pz  + xlab("Slope of field") + ylab ('Grain Zn (ppm)') + ggtitle('Plant Zinc distribution by slope of field')
-pz <- pz + theme_classic()+ theme(axis.title = element_text(size = 14))+ 
-  theme(axis.text.y = element_text(size = 12))+ 
-  theme(axis.text.x = element_text(size = 12))+
-	theme(plot.title = element_text(hjust = 0.5));
-pz
-ggsave("/Users/andrewsila/Alliance/Job/Plots/ISFM_components_Grain_zn_slope.png", pz, height = 4, width = 12)
-
-## 1. ------------- Plot for plants
-
- Zn, Fe, Mn, K, CEC and Fe/Zn ratio. Omit the others.
-
-# grain yiled 
-# Tanzania average yield from 2016 to 2019 https://www.nature.com/articles/s41598-020-76315-8#MOESM1
-# Scatter plots for soil and grain zinc against field slope
-p0 <- ggplot(survey,aes(y = maizetha_125, x = Slope))
-p0 <- p0 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p0 <- p0  + ylab('Grain yield (t/ha)') + xlab ('Slope of field (%)') 
-p0 <- p0 + ggtitle('(a)') + theme_classic()# Maize grain yield and slope') + theme_classic()
-p0 <- p0 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p0
-#p0 <- p0 + geom_hline(yintercept = 1.6, linetype = "dashed", col = "orange")
-#p0 <- p0 + annotate("text", x = 20, y = 1.6, label = "potential yield = 1.60", vjust = -0.5, col = "#32a676")
-#p0
-
-
-# 2. grain zinc 
-# Scatter plots for soil and grain zinc against field slope
-p1 <- ggplot(survey %>% filter(Zn..ppm......... > 0),aes(y = Zn..ppm........., x = Slope))
-p1 <- p1 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p1 <- p1  + ylab('Zinc (ppm)') + xlab ('Slope of field (%)') 
-p1 <- p1 + ggtitle('(c)') + theme_classic() #Grain zinc and slope') +  theme_classic()
-p1 <- p1 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p1 <- p1 + geom_hline(yintercept = 38, linetype = "dashed", col = "orange")
-p1 <- p1 + annotate("text", x = 20, y = 38, label = "Target = 38", vjust = -0.5, col = "#32a676")
-p1
-
-
-#3. grain iron 
-# Scatter plots for soil and grain zinc against field slope
-p2 <- ggplot(survey,aes(y = Fe..ppm........., x = Slope))
-p2 <- p2 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p2 <- p2  + ylab('Iron (ppm)') + xlab ('Slope of field (%)') 
-p2 <- p2 + ggtitle('(d)') + theme_classic()# Grain iron and slope') + theme_classic()
-p2 <- p2 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p2 <- p2 + geom_hline(yintercept = 60, linetype = "dashed", col = "orange")
-p2 <- p2 + annotate("text", x = 20, y = 60, label = "Target = 60", vjust = -0.5, col = "#32a676")
-p2
-
-#4. Nitrogen
-# Scatter plots for soil and grain zinc against field slope
-p3 <- ggplot(survey %>% filter(N.... > 0),aes(y = N...., x = Slope))
-p3 <- p3 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p3 <- p3  + ylab('Nitrogen (%)') + xlab ('Slope of field (%)') 
-p3 <- p3 + ggtitle('(b)') + theme_classic()# Grain nitrogen and slope') + theme_classic()
-p3 <- p3 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-#p3 <- p3 + geom_hline(yintercept = 60, linetype = "dashed", col = "orange")
-#p3 <- p3 + annotate("text", x = 20, y = 60, label = "Target = 60", vjust = -0.5, col = "#32a676")
-p3
-
-#4. Phosporous
-# Scatter plots for soil and grain zinc against field slope
-p4 <- ggplot(survey %>% filter(P..... > 0),aes(y = P....., x = Slope))
-p4 <- p4 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p4 <- p4  + ylab('Phosporus (ppm)') + xlab ('Slope of field (%)') 
-p4 <- p4 + ggtitle('d.) Grain phosporus and slope') + theme_classic()
-p4 <- p4 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p4
-
-#5. Potassium
-# Scatter plots for soil and grain zinc against field slope
-p5 <- ggplot(survey %>% filter(K............. > 0),aes(y = K............., x = Slope))
-p5 <- p5 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p5 <- p5  + ylab('Potassium (ppm)') + xlab ('Slope of field (%)') 
-p5 <- p5 + ggtitle('e.) Grain potassium and slope') + theme_classic()
-p5 <- p5 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p5
-
-#6. Manganese
-# Scatter plots for soil and grain zinc against field slope
-p6 <- ggplot(survey ,aes(y = Mn..ppm........, x = Slope))
-p6 <- p6 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p6 <- p6  + ylab('Manganese (ppm)') + xlab ('Slope of field (%)') 
-p6 <- p6 + ggtitle('f.) Grain manganese and slope') + theme_classic()
-p6 <- p6 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p6
-
-# 7. Boron
-# Scatter plots for soil and grain zinc against field slope
-p7 <- ggplot(survey %>% filter(B..ppm......... > 0) ,aes(y = B..ppm........., x = Slope))
-p7 <- p7 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p7 <- p7  + ylab('Boron (ppm)') + xlab ('Slope of field (%)') 
-p7 <- p7 + ggtitle('g.) Grain Boron and slope') + theme_classic()
-p7 <- p7 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p7
-
-# 8. Copper
-# Scatter plots for soil and grain zinc against field slope
-p8 <- ggplot(survey %>% filter(Cu..ppm......... > 0) ,aes(y = Cu..ppm........., x = Slope))
-p8 <- p8 + geom_point(colour = "#32a676", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-p8 <- p8  + ylab('Cu (ppm)') + xlab ('Slope of field (%)') 
-p8 <- p8 + ggtitle('h.) Grain Copper and slope') + theme_classic()
-p8 <- p8 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-p8
-
-p <- grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p0, nrow = 3)
-
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil parameters versus slope.png", p, height = 12, width = 18)
-
-
-p_pl <- grid.arrange(p0,p3,p1,p2, nrow = 2)
-
-p_pl
-
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil parameters versus slope_refreshed.png", p_pl, height = 8, width = 12)
-
-# 2. Get for soil nutrients with similar slopping pattern with increasing slope are iron, calcium, potassium, magnesium, cec and manganese
-
-# Scatter plots for soil and grain zinc against field slope #A6761D
-s2 <- ggplot(survey,aes(y = Zinc, x = Slope))
-s2 <- s2 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s2 <- s2  + ylab('Soil Zn (ppm)') + xlab ('Slope of field (%)') 
-s2 <- s2 + theme_classic() + ggtitle('(a)')# Soil Zn and slope')
-s2 <- s2 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s2 <- s2 + geom_hline(yintercept = 2, linetype = "dashed", col = "blue")
-s2 <- s2 + annotate("text", x = 20, y = 2, label = "critical limit = 2.0", vjust = -0.5, col = "#A6761D")
-s2
-#ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil_zn versus slope.png", s2, height = 4, width = 8)
-
-s3 <- ggplot(survey,aes(y = Potassium, x = Slope))
-s3 <- s3 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s3 <- s3  + ylab('Soil K (ppm)') + xlab ('Slope of field (%)') 
-s3 <- s3 + theme_classic() + ggtitle('(f)')
-s3 <- s3 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s3 <- s3 + geom_hline(yintercept = 50, linetype = "dashed", col = "blue")
-s3 <- s3 + annotate("text", x = 20, y = 50, label = "critical limit = 50.0", vjust = -0.5, col = "#A6761D")
-s3
-
-
-# Calcium (not required for the manuscript)
-s4 <- ggplot(survey,aes(y = Calcium, x = Slope))
-s4 <- s4 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s4 <- s4  + ylab('Soil Ca (ppm)') + xlab ('Slope of field (%)') 
-s4 <- s4 + theme_classic() + ggtitle('c.) Soil Ca and slope')
-s4 <- s4 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s4
-
-# Magnesium (not required for the manuscript)
-s5 <- ggplot(survey,aes(y = Magnesium, x = Slope))
-s5 <- s5 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s5 <- s5  + ylab('Soil Mg (ppm)') + xlab ('Slope of field (%)') 
-s5 <- s5 + theme_classic() + ggtitle('d.) Soil Mg and slope')
-s5 <- s5 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s5
-
-# Manganese
-s6 <- ggplot(survey,aes(y = Manganese, x = Slope))
-s6 <- s6 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s6 <- s6  + ylab('Soil Mn (ppm)') + xlab ('Slope of field (%)') 
-s6 <- s6 + theme_classic() + ggtitle('(b)') #Soil Mn and slope')
-s6 <- s6 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s6 <- s6 + geom_hline(yintercept = 30, linetype = "dashed", col = "blue")
-s6 <- s6 + annotate("text", x = 20, y = 30, label = "critical limit = 30.0", vjust = -0.5, col = "#A6761D")
-s6
-
-# CEC
-s7 <- ggplot(survey,aes(y = X.C.E.C, x = Slope))
-s7 <- s7 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s7 <- s7  + ylab('Soil CEC (meq/100g)') + xlab ('Slope of field (%)') 
-s7 <- s7 + theme_classic() + ggtitle('(c)') #Soil CEC and slope')
-s7 <- s7 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s7 <- s7 + geom_hline(yintercept = 25, linetype = "dashed", col = "blue")
-s7 <- s7 + annotate("text", x = 20, y = 25, label = "critical limit = 25.0", vjust = -0.5, col = "#A6761D")
-s7
-
-
-# Iron
-s8 <- ggplot(survey,aes(y = Iron, x = Slope))
-s8 <- s8 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s8 <- s8  + ylab('Soil Fe (ppm)') + xlab ('Slope of field (%)') 
-s8 <- s8 + theme_classic() + ggtitle('(d)') #Soil Fe and slope')
-s8 <- s8 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s8 <- s8 + geom_hline(yintercept = 30, linetype = "dashed", col = "blue")
-s8 <- s8 + annotate("text", x = 20, y = 30, label = "critical limit = 30.0", vjust = -0.5, col = '#A6761D')
-s8
-
-# Nitrogen
-s9 <- ggplot(survey,aes(y = X.Total.Nitrogen, x = Slope))
-s9 <- s9 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s9 <- s9  + ylab('Soil N (%)') + xlab ('Slope of field (%)') 
-s9 <- s9 + theme_classic() + ggtitle('h.) Soil N and slope')
-s9 <- s9 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s9
-
-# Carbon
-s10 <- ggplot(survey,aes(y = X.Organic.Carbon, x = Slope))
-s10 <- s10 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s10 <- s10  + ylab('Soil C (%)') + xlab ('Slope of field (%)') 
-s10 <- s10 + theme_classic() + ggtitle('i.) Soil C and slope')
-s10 <- s10 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s10
-
-# Phosporus
-s11 <- ggplot(survey,aes(y = X.Phosphorus..Olsen., x = Slope))
-s11 <- s11 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s11 <- s11  + ylab('Soil P (ppm)') + xlab ('Slope of field (%)') 
-s11 <- s11 + theme_classic() + ggtitle('h.) Soil P and slope')
-s11 <- s11 + theme(axis.text = element_text (size = 20)) + 
-theme(title = element_text(size = 22)) + 
-theme(axis.title = element_text(size = 20)) +
-theme(plot.title = element_text(hjust = 0.5))
-s11
-
-p <- grid.arrange(s2, s3, s4, s5, s6, s7, s8, s11, s10, nrow = 3)
-
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil_properties versus slope.png", p, height = 12, width = 18)
-
-# Iron:Zinc
-s12 <- ggplot(survey,aes(y = Iron/Zinc, x = Slope))
-s12 <- s12 + geom_point(colour = "#A6761D", size  = 2) + theme(plot.title = element_text(hjust = 0.5))
-s12 <- s12  + ylab('Soil Fe:Zn ratio') + xlab ('Slope of field (%)') 
-s12 <- s12 + theme_classic() + ggtitle('(e)')# Soil Fe:Zn ratio and slope')
-s12 <- s12 + theme_classic() + theme(plot.title = element_text(hjust = 0.5));
-s12 <- s12 + theme(axis.text = element_text (size = 20)) + theme(title = element_text(size = 22)) + theme(axis.title = element_text(size = 20))
-s12 <- s12 + geom_hline(yintercept = 15, linetype = "dashed", col = "blue")
-s12 <- s12+ annotate("text", x = 20, y = 15, label = "critical limit = 15.0", vjust = -0.5, col = '#A6761D')
-s12
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil FeZn ratio versus slope.png", s12, height = 6, width = 12)
-
-# Save for CEC, Iron, Iron:Zinc, Manganese and Zinc
-p_soil <- grid.arrange(s2, s6, s7, s8, s12,s3, nrow = 2)
-
-ggsave("/Users/andrewsila/Alliance/Job/Plots/Soil_properties versus slope_refreshed.png", p_soil, height = 6, width = 14)
